@@ -1,14 +1,17 @@
 {
   "name": "html-sheet",
+  "type": "module",
   "version": "1.0.0",
   "description": "",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc"
+    "dev": "vite serve",
+    "build": "vite build"
   },
-  "dependencies": {},
   "devDependencies": {
-    "typescript": "^5.5.3"
+    "typescript": "^5.5.3",
+    "vite": "^6.3.2",
+    "vite-plugin-checker": "^0.9.1"
   },
   "private": true
 }
