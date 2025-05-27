@@ -1,8 +1,48 @@
 html, body {
     margin: 0;
     padding: 0;
-    width: 100%;
+    height: 100%;
     position: relative;
     font-family: Arial, 'Open Sans', sans-serif;
     scroll-behavior: smooth;
+}
+
+#viewport {
+    overflow-y: auto;
+    height: 100%;
+}
+
+.table {
+    position: relative;
+}
+
+.table-content {
+    position: absolute;
+    top: 0;
+    left: 0;
+    min-width: 100%;
+}
+
+.sentinel {
+    width: 100%;
+    position: absolute;
+    height: 1px;
+}
+
+.row {
+    position: absolute;
+    top: 0;
+    left: 0;
+    border-bottom: 1px solid #999;
+}
+
+.cell {
+    position: absolute;
+    height: 100%;
+    border-right: 1px solid #999;
+    font-size: 12px;
+    color: #444;
+    display: flex;
+    align-items: center;
+    padding: 0 6px;
 }
