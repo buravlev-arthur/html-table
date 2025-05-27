@@ -1,0 +1,94 @@
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    position: relative;
+    font-family: Arial, 'Open Sans', sans-serif;
+    scroll-behavior: smooth;
+}
+
+#column-headers-container {
+    height: 28px;
+    background: #f8f8f8;
+    position: sticky;
+    top: 0;
+    left: 0;
+    z-index: 2;
+    border-bottom: 1px solid #888;
+    display: flex;
+    flex-wrap: nowrap;
+}
+
+#table {
+    position: relative;
+    box-sizing: border-box;
+    background-color: #fff;
+    z-index: 1;
+}
+
+.row {
+    position: absolute;
+    border-bottom: 1px solid #888;
+    box-sizing: border-box;
+    transform-origin: 0 0;
+    z-index: 1;
+    width: 100%;
+    font-size: 11px;
+}
+
+.cell {
+    position: absolute;
+    transform: translate(0, 0);
+    transform-origin: 0 0;
+    border-right: 1px solid #888;
+    box-sizing: border-box;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    padding: 0 6px;
+}
+
+.row-number-cell {
+    background: #f8f8f8;
+    width: 50px;
+    justify-content: center;
+    padding: 0 6px;
+}
+
+.column-header-cell {
+    position: static;
+    text-transform: capitalize;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: #333;
+    padding: 0 6px;
+}
+
+.row-empty-cell {
+    position: static;
+    width: 50px;
+}
+
+#top-intersection-observer {
+    position: fixed;
+    height: 30px;
+    width: 100%;
+    top: 0;
+    left: 0;
+    background-color: red;
+    opacity: 0.1;
+    z-index: 2;
+}
+
+#bottom-intersection-observer {
+    position: fixed;
+    height: 30px;
+    width: 100%;
+    bottom: 0;
+    left: 0;
+    background-color: red;
+    opacity: 0.1;
+    z-index: 2;
+}
