@@ -206,7 +206,7 @@ export default class Table {
 
   public renderRow(rowIndex: number, rowContentBlockIndex: number, previousRowsHeight: number): void {
     const rowHeaderCellElement = this.tableRowHeaderCellElements[rowContentBlockIndex];
-    rowHeaderCellElement.style.transform = `translateY(${previousRowsHeight + this.tableHeaderHeightPx}px)`;
+    rowHeaderCellElement.style.transform = `translateY(${previousRowsHeight + this.tableHeaderHeightPx + 1}px)`;
     rowHeaderCellElement.style.display = "flex";
     rowHeaderCellElement.textContent = `${rowIndex + 1}`;
 
