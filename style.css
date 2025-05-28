@@ -7,9 +7,33 @@ html, body {
     scroll-behavior: smooth;
 }
 
+.column-headers-container {
+    position: sticky;
+    height: 28px;
+    background: #f8f8f8;
+    top: 0;
+    left: 0;
+    border-bottom: 1px solid #999;
+    z-index: 2;
+}
+
 #viewport {
-    overflow-y: auto;
+    overflow: auto;
     height: 100%;
+}
+
+#viewport::before {
+    content: '';
+    display: block;
+    position: absolute;
+    border-right: 1px solid #999;
+    border-bottom: 1px solid #999;
+    background: #f8f8f8;
+    width: 62px;
+    height: 28px;
+    top: 0;
+    left: 0;
+    z-index: 4;
 }
 
 .table {
@@ -18,9 +42,8 @@ html, body {
 
 .table-content {
     position: absolute;
-    top: 0;
-    left: 0;
-    min-width: 100%;
+    top: 28px;
+    left: 63px;
 }
 
 .sentinel {
@@ -34,6 +57,7 @@ html, body {
     top: 0;
     left: 0;
     border-bottom: 1px solid #999;
+    z-index: 1;
 }
 
 .cell {
@@ -45,4 +69,30 @@ html, body {
     display: flex;
     align-items: center;
     padding: 0 6px;
+}
+
+.column-header-cell {
+    text-transform: capitalize;
+    justify-content: center;
+    color: #777;
+    font-weight: 600;
+    border-left-color: #999;
+    border-left-style: solid;
+    border-left-width: 0;
+}
+
+.row-headers-container {
+    position: sticky;
+    left: 0;
+    width: 50px;
+    z-index: 3;
+}
+
+.row-headers-container > .cell {
+    width: 50px;
+    justify-content: center;
+    font-weight: 600;
+    color: #777;
+    border-top: 1px solid #999;
+    background: #f9f9f9;
 }

@@ -2,6 +2,7 @@ import {Cell, Column} from "./types";
 
 export default class VirtualScroll {
   private readonly columnDefaultWidth: number = 80;
+  private readonly tableHeaderHeightPx: number = 28;
   private readonly columnChars: string[] = [...'abcdefghijklmnopqrstuvwxyz'];
   private readonly cellPaddingPx: number = 12;
 
@@ -16,8 +17,10 @@ export default class VirtualScroll {
   private scrollHandler: (() => void) | null = null;
   private rowsBuffer = 10;
   private tableRowElements: HTMLDivElement[] = [];
+  private tableRowHeaderCellElements: HTMLDivElement[] = [];
   private columns = new Map<number, Column>();
   private cells = new Map<string, Cell>();
+  private rowHeadersContainerElement: HTMLDivElement | null = null;
 
   constructor(
     private readonly container: HTMLDivElement,
@@ -38,6 +41,10 @@ export default class VirtualScroll {
     this.tableEl.style.height = `${this.availableRowsCount * this.rowHeight}px`;
     this.container.appendChild(this.tableEl);
 
+    this.rowHeadersContainerElement = document.createElement("div");
+    this.rowHeadersContainerElement.classList.add("row-headers-container");
+    this.tableEl.appendChild(this.rowHeadersContainerElement);
+
     this.tableContentEl = document.createElement("div");
     this.tableContentEl.classList.add("table-content");
     this.tableEl.appendChild(this.tableContentEl);
@@ -52,12 +59,37 @@ export default class VirtualScroll {
   }
 
   setColumns(): void {
-    for (let columnIndex = 0; columnIndex < this.columnChars.length; columnIndex += 1) {
-      this.columns.set(columnIndex, {
-        title: this.columnChars[columnIndex],
-        width: this.columnDefaultWidth
-      });
+    if (!this.tableEl) {
+      return;
     }
+
+    const rowHeaderCellWidthPx = 63;
+    const columnHeadersContainer = document.createElement("div");
+    columnHeadersContainer.classList.add("column-headers-container");
+
+    let cellsTotalWidth = rowHeaderCellWidthPx;
+    for (let columnIndex = 0; columnIndex < this.columnChars.length; columnIndex += 1) {
+      const title = this.columnChars[columnIndex];
+      const width = this.columnDefaultWidth;
+
+      this.columns.set(columnIndex, {
+        title,
+        width
+      });
+
+      const columnHeaderCellEl = document.createElement("div");
+      columnHeaderCellEl.classList.add("column-header-cell", "cell");
+      columnHeaderCellEl.style.width = `${width}px`;
+      columnHeaderCellEl.textContent = title;
+      columnHeaderCellEl.style.transform = `translateX(${cellsTotalWidth}px)`;
+
+      columnHeadersContainer.appendChild(columnHeaderCellEl);
+
+      cellsTotalWidth += width + this.cellPaddingPx;
+    }
+
+    columnHeadersContainer.style.width = `${cellsTotalWidth}px`;
+    this.tableEl.appendChild(columnHeadersContainer);
   }
 
   setCells(): void {
@@ -74,7 +106,7 @@ export default class VirtualScroll {
   }
 
   private createRowHTMLElements(): void {
-    if (!this.tableContentEl) {
+    if (!this.tableContentEl || !this.rowHeadersContainerElement) {
       return;
     }
 
@@ -89,6 +121,11 @@ export default class VirtualScroll {
       rowEl.style.display = "none";
 
       let previousCellsWidth = 0;
+
+      const rowHeaderCellElement = this.getRowHeaderCell(rowIndex, this.rowHeight);
+      this.tableRowHeaderCellElements.push(rowHeaderCellElement);
+      this.rowHeadersContainerElement.appendChild(rowHeaderCellElement);
+
       this.columns.forEach((column, columnIndex) => {
         const cellElement = this.getCellElement(rowIndex, column, columnIndex, previousCellsWidth);
         rowEl.appendChild(cellElement);
@@ -101,6 +138,16 @@ export default class VirtualScroll {
       this.tableRowElements.push(rowEl);
       this.tableContentEl.appendChild(rowEl);
     }
+  }
+
+  private getRowHeaderCell(rowIndex: number, rowHeight: number): HTMLDivElement {
+    const rowHeaderCellElement = document.createElement("div");
+    rowHeaderCellElement.classList.add("cell");
+    rowHeaderCellElement.style.height = `${rowHeight}px`;
+    rowHeaderCellElement.textContent = String(rowIndex + 1);
+    rowHeaderCellElement.style.display = "none";
+
+    return rowHeaderCellElement;
   }
 
   private getCellElement(rowIndex: number, column: Column, columnIndex: number, previousCellsWidth: number): HTMLDivElement {
@@ -155,7 +202,7 @@ export default class VirtualScroll {
   }
 
   private renderVisibleRows(): void {
-    if (!this.tableContentEl) {
+    if (!this.tableContentEl || !this.rowHeadersContainerElement) {
       return;
     }
 
@@ -167,9 +214,9 @@ export default class VirtualScroll {
       this.startIndex + this.visibleRowsCount + this.rowsBuffer
     );
 
+    this.rowHeadersContainerElement.style.transform = `translateY(${this.startIndex * this.rowHeight}px)`;
     this.tableContentEl.style.transform = `translateY(${this.startIndex * this.rowHeight}px)`;
 
-    // this.tableContentEl.innerHTML = '';
     this.hideRows();
 
     let contentIndex = 0;
@@ -185,8 +232,9 @@ export default class VirtualScroll {
   }
 
   hideRows(): void {
-    for (const rowElement of this.tableRowElements) {
+    for (const [index, rowElement] of this.tableRowElements.entries()) {
       rowElement.style.display = "none";
+      this.tableRowHeaderCellElements[index].style.display = "none";
     }
   }
 
@@ -194,6 +242,11 @@ export default class VirtualScroll {
     if (!this.tableContentEl) {
       return;
     }
+
+    const rowHeaderCellElement = this.tableRowHeaderCellElements[rowContentBlockIndex];
+    rowHeaderCellElement.style.transform = `translateY(${previousRowsHeight + this.tableHeaderHeightPx}px)`;
+    rowHeaderCellElement.style.display = "flex";
+    rowHeaderCellElement.textContent = `${rowIndex + 1}`;
 
     const tableRowEl = this.tableRowElements[rowContentBlockIndex];
     tableRowEl.setAttribute("data-row-index", `${rowIndex}`);
