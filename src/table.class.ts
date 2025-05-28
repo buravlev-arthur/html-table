@@ -1,4 +1,5 @@
-import {Cell, Column} from "./types";
+import type {Cell, Column, TableMode} from "./types";
+import TableCell from './cell.class';
 
 export default class Table {
   private readonly columnChars: string[] = [...'abcdefghijklmnopqrstuvwxyz'];
@@ -15,6 +16,8 @@ export default class Table {
   private _columns = new Map<number, Column>();
   private _tableRowHeaderCellElements: HTMLDivElement[] = [];
   private _tableRowElements: HTMLDivElement[] = [];
+  private tableMode: TableMode = 'read';
+  private selectedCell: TableCell | null = null;
 
   constructor(
     private readonly container: HTMLDivElement,
@@ -40,6 +43,7 @@ export default class Table {
     this.setColumns();
     this.setCells();
     this.createRowHTMLElements();
+    this.listenTableClick();
   }
 
   get tableRowHeaderCellElements() {
@@ -68,6 +72,41 @@ export default class Table {
 
   get rowHeadersContainerElement() {
     return this._rowHeadersContainerElement;
+  }
+
+  listenTableClick(): void {
+    this.container.addEventListener('click', (event: MouseEvent) => {
+      const clickedEl = event.target;
+      const isCellEl = Boolean(clickedEl) && (clickedEl as HTMLElement).hasAttribute('data-row');
+
+      if (this.selectedCell) {
+        this.selectedCell.unselectCell();
+        this.selectedCell = null;
+      }
+
+      if (!isCellEl) {
+        return;
+      }
+
+      const cell = new TableCell(
+        clickedEl as HTMLDivElement,
+        this.cells,
+        this.cellPaddingPx,
+      );
+
+      if (this.tableMode === 'read') {
+        cell.selectCell();
+      }
+
+      this.selectedCell = cell;
+    });
+  }
+
+  public cancelCellSelection(): void {
+    if (this.selectedCell) {
+      this.selectedCell.unselectCell();
+      this.selectedCell = null;
+    }
   }
 
   private setColumns(): void {

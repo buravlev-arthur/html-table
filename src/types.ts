@@ -1,3 +1,5 @@
+export type TableMode = 'read' | 'write';
+
 export type Column = {
   title: string;
   width: number;

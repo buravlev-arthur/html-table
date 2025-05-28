@@ -84,6 +84,8 @@ export default class VirtualScroll {
       return;
     }
 
+    this.table.cancelCellSelection();
+
     const scrollTop = this.container.scrollTop;
 
     this.startIndex = Math.max(0, Math.floor(scrollTop / this.rowHeight) - this.rowsBuffer);
