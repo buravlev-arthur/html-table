@@ -1,5 +1,6 @@
 import type {Cell, Column, TableMode} from "./types";
 import TableCell from './cell.class';
+import DragAndDrop from "./drag-and-drop.class";
 
 export default class Table {
   private readonly columnChars: string[] = [...'abcdefghijklmnopqrstuvwxyz'];
@@ -128,6 +129,15 @@ export default class Table {
       columnHeaderCellEl.style.width = `${width}px`;
       columnHeaderCellEl.textContent = title;
       columnHeaderCellEl.style.transform = `translateX(${cellsTotalWidth}px)`;
+
+      const dragAndDrop = new DragAndDrop(
+        this.container,
+        columnHeadersContainer,
+        cellsTotalWidth,
+        this.columns.get(columnIndex)!
+      );
+
+      dragAndDrop.setColumnAnchor();
 
       columnHeadersContainer.appendChild(columnHeaderCellEl);
 

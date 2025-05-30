@@ -98,3 +98,52 @@ html, body {
     background: #f9f9f9;
     box-sizing: border-box;
 }
+
+.column-anchor {
+    width: 13px;
+    height: 100%;
+    position: absolute;
+    left: 6px;
+    top: 0;
+    opacity: 0;
+    z-index: 6;
+    cursor: col-resize;
+}
+
+.column-anchor::before {
+    content: '';
+    position: absolute;
+    top: 4px;
+    width: 7px;
+    border-color: #555;
+    border-style: solid;
+    border-width: 3px;
+    border-top: 0;
+    border-bottom: 0;
+    height: 20px;
+    border-radius: 2px;
+    cursor: col-resize;
+}
+
+.column-anchor::after {
+    content: '';
+    display: none;
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: 7px;
+    left: 3px;
+    background: #bbb;
+}
+
+.column-anchor:hover {
+    opacity: 1;
+}
+
+.column-anchor.active {
+   height: 100vh;
+}
+
+.column-anchor.active::after {
+    display: block;
+}
