@@ -1,6 +1,7 @@
 import type {Cell, Column, TableMode, CellElement} from "./types";
 import TableCell from './cell.class';
-import DragAndDrop from "./drag-and-drop.class";
+import ColumnDragAndDrop from "./column-drag-and-drop.class";
+import RowDragAndDrop from "./row-drag-and-drop.class";
 
 export default class Table {
   private readonly columnChars: string[] = [...'abcdefghijklmnopqrstuvwxyz'];
@@ -15,6 +16,7 @@ export default class Table {
   public readonly tableHeaderHeightPx: number = 28;
 
   private _cells = new Map<string, Cell>();
+  private _rows = new Map<number, number>;
   private _columns = new Map<number, Column>();
   private _tableColumnElements: HTMLDivElement[] = [];
   private tableCellElements: CellElement[] = [];
@@ -22,21 +24,25 @@ export default class Table {
   private _tableRowElements: HTMLDivElement[] = [];
   private tableMode: TableMode = 'read';
   private selectedCell: TableCell | null = null;
-  private anchors: DragAndDrop[] = [];
+  private columnAnchors: ColumnDragAndDrop[] = [];
+  private rowAnchors: RowDragAndDrop[] = [];
+  private _cellsTotalWidth: number = 0;
 
   constructor(
     private readonly container: HTMLDivElement,
     private readonly availableRowsCount: number,
-    private readonly rowHeight: number,
-    private readonly visibleRowsCount: number,
+    private readonly rowDefaultHeight: number,
     private readonly rowsBuffer: number,
+    private readonly renderVisibleRows: () => void,
   ) {
     this.init();
   }
 
   private init(): void {
+    this.setRows();
+
     this._tableEl.classList.add("table");
-    this._tableEl.style.height = `${this.availableRowsCount * this.rowHeight}px`;
+    this._tableEl.style.height = `${this.totalRowsHeight + this.tableHeaderHeightPx * 2}px`;
     this.container.appendChild(this.tableEl);
 
     this._rowHeadersContainerElement.classList.add("row-headers-container");
@@ -51,6 +57,22 @@ export default class Table {
     this.listenTableClick();
   }
 
+  public get visibleRowsCount(): number {
+    const averageRowHeight = this.totalRowsHeight / this.rows.size;
+    return Math.ceil(this.container.clientHeight / averageRowHeight);
+  }
+
+  get totalRowsHeight(): number {
+    let totalRowsHeight = 0;
+    this._rows.forEach((rowHeight: number) => totalRowsHeight += rowHeight);
+
+    return totalRowsHeight;
+  }
+
+  get cellsTotalWidth(): number {
+    return this._cellsTotalWidth;
+  }
+
   get tableRowHeaderCellElements() {
     return this._tableRowHeaderCellElements;
   }
@@ -61,6 +83,10 @@ export default class Table {
 
   get tableColumnElements() {
     return this._tableColumnElements;
+  }
+
+  get rows() {
+    return this._rows;
   }
 
   get cells() {
@@ -88,10 +114,7 @@ export default class Table {
       const clickedEl = event.target;
       const isCellEl = Boolean(clickedEl) && (clickedEl as HTMLElement).hasAttribute('data-row');
 
-      if (this.selectedCell) {
-        this.selectedCell.unselectCell();
-        this.selectedCell = null;
-      }
+      this.unselectCell();
 
       if (!isCellEl) {
         return;
@@ -112,9 +135,19 @@ export default class Table {
   }
 
   public cancelCellSelection(): void {
+    this.unselectCell();
+  }
+
+  private unselectCell(): void {
     if (this.selectedCell) {
       this.selectedCell.unselectCell();
       this.selectedCell = null;
+    }
+  }
+
+  private setRows(): void {
+    for (let rowIndex = 0; rowIndex < this.availableRowsCount; rowIndex += 1) {
+      this._rows.set(rowIndex, this.rowDefaultHeight);
     }
   }
 
@@ -140,7 +173,7 @@ export default class Table {
       this.columnHeadersContainer.appendChild(columnHeaderCellEl);
       this._tableColumnElements.push(columnHeaderCellEl);
 
-      const anchorInstance = new DragAndDrop(
+      const anchorInstance = new ColumnDragAndDrop(
         this.container,
         this.columnHeadersContainer,
         cellsTotalWidth,
@@ -150,22 +183,25 @@ export default class Table {
         this.rerenderColumns.bind(this),
       );
 
-      this.anchors.push(anchorInstance);
+      this.columnAnchors.push(anchorInstance);
 
       cellsTotalWidth += width + this.cellPaddingPx;
     }
 
     this.columnHeadersContainer.style.width = `${cellsTotalWidth}px`;
     this.tableEl.appendChild(this.columnHeadersContainer);
+    this._cellsTotalWidth = cellsTotalWidth;
   }
 
   protected rerenderColumns(changedColumnIndex: number, changedCellTranslateX: number): void {
+    this.unselectCell();
+
     let totalTranslateXPx = changedCellTranslateX;
 
     for (let columnIndex = changedColumnIndex; columnIndex < this.tableColumnElements.length; columnIndex += 1) {
       const column = this.columns.get(columnIndex)!;
       const cellRightPx = totalTranslateXPx + column.width;
-      this.anchors[columnIndex].setLeftPosition(cellRightPx);
+      this.columnAnchors[columnIndex].setLeftPosition(cellRightPx);
 
       if (columnIndex === changedColumnIndex) {
         this.tableColumnElements[columnIndex].style.width = `${column.width}px`;
@@ -187,10 +223,16 @@ export default class Table {
     }
 
     this.columnHeadersContainer.style.width = `${totalTranslateXPx}px`;
+    this._cellsTotalWidth = totalTranslateXPx;
 
     this.tableRowElements.forEach((rowEl: HTMLElement) => {
       rowEl.style.width = `${totalTranslateXPx - this.rowHeaderCellWidthPx}px`;
     })
+  }
+
+  private rerenderRows(): void {
+    this.renderVisibleRows();
+    this._tableEl.style.height = `${this.totalRowsHeight + this.tableHeaderHeightPx * 2}px`;
   }
 
   private setCells(): void {
@@ -211,17 +253,32 @@ export default class Table {
 
     for (let rowIndex = 0; rowIndex < rowElementsCount; rowIndex += 1) {
       const rowEl = document.createElement("div");
+      const rowHeight = this.rows.get(rowIndex)!;
       rowEl.classList.add("row");
       rowEl.setAttribute("data-row-index", `${rowIndex}`);
       rowEl.setAttribute("data-row-array-index", `${rowIndex}`);
-      rowEl.style.height = `${this.rowHeight}px`;
+      rowEl.style.height = `${rowHeight}px`;
       rowEl.style.display = "none";
 
       let previousCellsWidth = 0;
 
-      const rowHeaderCellElement = this.getRowHeaderCell(rowIndex, this.rowHeight);
+      const rowHeaderCellElement = this.getRowHeaderCell(rowIndex);
       this._tableRowHeaderCellElements.push(rowHeaderCellElement);
       this.rowHeadersContainerElement.appendChild(rowHeaderCellElement);
+
+      const anchorInstance = new RowDragAndDrop(
+        this.container,
+        this.tableContentEl,
+        this.rowHeadersContainerElement,
+        0,
+        rowIndex,
+        rowIndex,
+        this.rows,
+        this.tableHeaderHeightPx,
+        this.rerenderRows.bind(this)
+      );
+
+      this.rowAnchors.push(anchorInstance)
 
       this.columns.forEach((column, columnIndex) => {
         const cellElement = this.getCellElement(rowIndex, column, columnIndex, previousCellsWidth);
@@ -243,10 +300,10 @@ export default class Table {
     }
   }
 
-  private getRowHeaderCell(rowIndex: number, rowHeight: number): HTMLDivElement {
+  private getRowHeaderCell(rowIndex: number): HTMLDivElement {
     const rowHeaderCellElement = document.createElement("div");
     rowHeaderCellElement.classList.add("cell");
-    rowHeaderCellElement.style.height = `${rowHeight}px`;
+    rowHeaderCellElement.style.height = `${this.rows.get(rowIndex)}px`;
     rowHeaderCellElement.textContent = String(rowIndex + 1);
     rowHeaderCellElement.style.display = "none";
 
@@ -266,15 +323,27 @@ export default class Table {
   }
 
   public renderRow(rowIndex: number, rowContentBlockIndex: number, previousRowsHeight: number): void {
+    const rowHeight = this.rows.get(rowIndex)!;
     const rowHeaderCellElement = this.tableRowHeaderCellElements[rowContentBlockIndex];
+    const isNotLastRow = rowIndex < this.rows.size - 1;
+
     rowHeaderCellElement.style.transform = `translateY(${previousRowsHeight + this.tableHeaderHeightPx + 1}px)`;
+    rowHeaderCellElement.style.height = `${rowHeight}px`;
     rowHeaderCellElement.style.display = "flex";
     rowHeaderCellElement.textContent = `${rowIndex + 1}`;
+
+    this.rowAnchors[rowContentBlockIndex].setTopPosition(previousRowsHeight + rowHeight);
+    this.rowAnchors[rowContentBlockIndex].rowIndex = rowIndex;
+
+    if (isNotLastRow) {
+      this.rowAnchors[rowContentBlockIndex].showRowAnchorEl();
+    }
 
     const tableRowEl = this.tableRowElements[rowContentBlockIndex];
     tableRowEl.setAttribute("data-row-index", `${rowIndex}`);
     tableRowEl.setAttribute("data-row-array-index", `${rowContentBlockIndex}`);
     tableRowEl.style.transform = `translateY(${previousRowsHeight}px)`;
+    tableRowEl.style.height = `${rowHeight}px`;
     tableRowEl.style.display = 'flex';
 
     tableRowEl.querySelectorAll('.cell').forEach((cellElement, cellIndex) => {
@@ -283,11 +352,11 @@ export default class Table {
     });
   }
 
-
   public hideRows(): void {
     for (const [index, rowElement] of this.tableRowElements.entries()) {
       rowElement.style.display = "none";
       this.tableRowHeaderCellElements[index].style.display = "none";
+      this.rowAnchors[index].hideRowAnchorEl();
     }
   }
 }

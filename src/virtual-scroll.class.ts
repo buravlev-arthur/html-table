@@ -4,7 +4,6 @@ export default class VirtualScroll {
   private observer: IntersectionObserver | null = null;
   private itemEl: HTMLDivElement | null = null;
   private itemContentEl: HTMLDivElement | null = null;
-  private visibleRowsCount: number = 0;
   private startIndex: number = 0;
   private endIndex: number = 0;
   private topSentinel: HTMLDivElement | null = null;
@@ -16,21 +15,19 @@ export default class VirtualScroll {
   constructor(
     private readonly container: HTMLDivElement,
     private readonly availableRowsCount: number,
-    private readonly rowHeight: number,
+    private readonly defaultRowHeight: number,
   ) {
     this.init();
     this.addScrollListener();
   }
 
   private init(): void {
-    this.visibleRowsCount = Math.ceil(this.container.clientWidth / this.rowHeight);
-
     this.table = new Table(
       this.container,
       this.availableRowsCount,
-      this.rowHeight,
-      this.visibleRowsCount,
-      this.rowHeight,
+      this.defaultRowHeight,
+      this.rowsBuffer,
+      this.renderVisibleRows.bind(this),
     );
 
     this.itemEl = this.table.tableEl;
@@ -52,7 +49,6 @@ export default class VirtualScroll {
 
     this.bottomSentinel = document.createElement('div');
     this.bottomSentinel.classList.add("sentinel");
-    this.bottomSentinel.style.bottom = '0';
     this.itemEl.appendChild(this.bottomSentinel);
 
     this.observer = new IntersectionObserver(this.renderVisibleRows.bind(this), {
@@ -66,10 +62,9 @@ export default class VirtualScroll {
 
   private addScrollListener(): void {
     this.scrollHandler = () => {
-      const scrollTop = this.container.scrollTop;
-      const newStartIndex = Math.floor(scrollTop / this.rowHeight);
-      const isLessFirstRowIndex = newStartIndex < this.startIndex;
-      const isMoreLastRowIndex = newStartIndex > this.endIndex - this.availableRowsCount;
+      const updatedStartRowIndex = this.getUpdatedStartIndex();
+      const isLessFirstRowIndex = updatedStartRowIndex < this.startIndex;
+      const isMoreLastRowIndex = updatedStartRowIndex > this.endIndex - this.availableRowsCount;
 
       if (isLessFirstRowIndex || isMoreLastRowIndex) {
         this.renderVisibleRows();
@@ -86,16 +81,18 @@ export default class VirtualScroll {
 
     this.table.cancelCellSelection();
 
-    const scrollTop = this.container.scrollTop;
+    const updatedStartRowIndex = this.getUpdatedStartIndex();
 
-    this.startIndex = Math.max(0, Math.floor(scrollTop / this.rowHeight) - this.rowsBuffer);
+    this.startIndex = Math.max(0, updatedStartRowIndex - this.rowsBuffer);
     this.endIndex = Math.min(
       this.availableRowsCount - 1,
-      this.startIndex + this.visibleRowsCount + this.rowsBuffer
+      this.startIndex + this.table.visibleRowsCount + this.rowsBuffer
     );
 
-    this.table.rowHeadersContainerElement.style.transform = `translateY(${this.startIndex * this.rowHeight}px)`;
-    this.itemContentEl.style.transform = `translateY(${this.startIndex * this.rowHeight}px)`;
+    const translateY = this.getRowsTotalHeight(0, this.startIndex);
+
+    this.table.rowHeadersContainerElement.style.transform = `translateY(${translateY}px)`;
+    this.itemContentEl.style.transform = `translateY(${translateY}px)`;
 
     this.table.hideRows();
 
@@ -104,21 +101,60 @@ export default class VirtualScroll {
 
     for (let rowIndex = this.startIndex; rowIndex <= this.endIndex; rowIndex += 1) {
       this.table.renderRow(rowIndex, contentIndex, previousRowsHeight);
-      previousRowsHeight += this.rowHeight;
+      previousRowsHeight += this.table.rows.get(rowIndex) ?? 0;
       contentIndex += 1;
     }
+
+
 
     this.updateSentinelsPosition();
   }
 
+  private getUpdatedStartIndex(): number {
+    if (!this.table) {
+      return 0;
+    }
+
+    const scrollTop = this.container.scrollTop;
+    let rowStartIndex = 0;
+    let rowsTotalHeight = 0;
+
+    while (scrollTop > rowsTotalHeight) {
+      const rowHeight = this.table!.rows.get(rowStartIndex) ?? 0;
+
+      rowsTotalHeight = rowsTotalHeight + rowHeight;
+      rowStartIndex  += 1;
+    }
+
+    return rowStartIndex;
+  }
+
+  private getRowsTotalHeight(startIndex: number, endIndex: number): number {
+    if (!this.table || (startIndex === 0 && endIndex === 0)) {
+      return 0;
+    }
+
+    let totalRowsHeight = 0;
+
+    for (let rowIndex = startIndex; rowIndex <= endIndex; rowIndex += 1) {
+      totalRowsHeight += this.table.rows.get(rowIndex)!;
+    }
+
+    return totalRowsHeight;
+  }
+
   private updateSentinelsPosition(): void {
-    if (!this.topSentinel || !this.bottomSentinel) {
+    if (!this.topSentinel || !this.bottomSentinel || !this.table) {
       return;
     }
 
     const topSentinelOffsetPx = 10;
-    this.topSentinel.style.top = `${Math.max(0, this.startIndex * this.rowHeight - topSentinelOffsetPx)}px`;
-    this.bottomSentinel.style.top = `${(this.endIndex + 1) * this.rowHeight}px`;
+
+    this.topSentinel.style.top = `${Math.max(0, this.getRowsTotalHeight(0, this.startIndex) - topSentinelOffsetPx)}px`;
+    this.topSentinel.style.width =`${this.table.cellsTotalWidth}px`;
+
+    this.bottomSentinel.style.top = `${this.getRowsTotalHeight(0, this.endIndex) + this.table.tableHeaderHeightPx * 2}px`;
+    this.bottomSentinel.style.width =`${this.table.cellsTotalWidth}px`;
   }
 
   destroy(): void {

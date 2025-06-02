@@ -1,8 +1,9 @@
 import type { Column } from "./types";
 
-export default class DragAndDrop {
+export default class ColumnDragAndDrop {
   private columnAnchorEl: HTMLElement = document.createElement("div");
   private dragOverListener: ((event: DragEvent) => void) | null = null;
+  private mouseUpListener: ((event: MouseEvent) => void) | null = null;
   private anchorLeftPositionPx: number = 0;
   private boundaries: number[] = [];
   private readonly leftBoundaryOffset: number = 10;
@@ -44,22 +45,32 @@ export default class DragAndDrop {
   }
 
   private listenDragAndDropColumn() {
-    this.columnAnchorEl.addEventListener("mousedown", this.mouseDown.bind(this));
+    this.columnAnchorEl.addEventListener("mousedown", this.listenMouseDownEvent.bind(this));
     this.columnAnchorEl.addEventListener("dragstart", this.dragStartListener.bind(this));
     this.columnAnchorEl.addEventListener("dragend", this.dragEndListener.bind(this));
   }
 
-  private mouseDown() {
+  private listenMouseDownEvent() {
     this.dragOverListener = (event) => {
       this.listenDragOverTableContainer(event);
     };
 
+    this.mouseUpListener = () => {
+      this.listenMouseUpEvent();
+    }
+
+    this.columnAnchorEl.addEventListener('mouseup', this.mouseUpListener);
 
     this.tableContainer.style.overflow = "hidden";
     this.tableContainer.addEventListener('dragover', this.dragOverListener);
   }
 
   private dragStartListener(event: DragEvent) {
+    if (this.mouseUpListener) {
+      this.columnAnchorEl.removeEventListener("mouseup", this.mouseUpListener);
+      this.mouseUpListener = null;
+    }
+
     this.columnAnchorEl.classList.add("active");
 
     const transparentImg = new Image();
@@ -76,26 +87,31 @@ export default class DragAndDrop {
 
     if (this.dragOverListener) {
       this.tableContainer.removeEventListener("dragover", this.dragOverListener);
+      this.dragOverListener = null;
     }
 
     this.rerenderColumns(this.columnIndex, this.cellTranslateX);
   }
 
+  private listenMouseUpEvent(): void {
+    this.tableContainer.style.overflow = "auto";
+  }
+
   private listenDragOverTableContainer(event: MouseEvent) {
-      event.preventDefault();
+    event.preventDefault();
 
-      const [ leftBoundary, rightBoundary ] = this.boundaries;
-      const containerRect = this.tableContainer.getBoundingClientRect();
-      const scrollLeft = this.tableContainer.scrollLeft;
-      const scrollLeftWithHeaderRowWidth =  scrollLeft + this.rowHeaderCellWidthPx;
-      const cellLeftScrollShift = scrollLeftWithHeaderRowWidth > this.cellTranslateX
-        ? scrollLeftWithHeaderRowWidth - this.cellTranslateX
-        : 0;
+    const [ leftBoundary, rightBoundary ] = this.boundaries;
+    const containerRect = this.tableContainer.getBoundingClientRect();
+    const scrollLeft = this.tableContainer.scrollLeft;
+    const scrollLeftWithHeaderRowWidth =  scrollLeft + this.rowHeaderCellWidthPx;
+    const cellLeftScrollShift = scrollLeftWithHeaderRowWidth > this.cellTranslateX
+      ? scrollLeftWithHeaderRowWidth - this.cellTranslateX
+      : 0;
 
-      const minTranslateXPx = Math.max(leftBoundary + cellLeftScrollShift, (event.clientX + scrollLeft) - containerRect.left);
-      const translateXPx = Math.min(rightBoundary + scrollLeft, minTranslateXPx);
+    const minTranslateXPx = Math.max(leftBoundary + cellLeftScrollShift, (event.clientX + scrollLeft) - containerRect.left);
+    const translateXPx = Math.min(rightBoundary + scrollLeft, minTranslateXPx);
 
-      this.columnAnchorEl.style.transform = `translateX(${translateXPx}px)`;
-      this.columnAnchorEl.style.top = `${containerRect.top}px`;
-    }
+    this.columnAnchorEl.style.transform = `translateX(${translateXPx}px)`;
+    this.columnAnchorEl.style.top = `${containerRect.top}px`;
+  }
 }
