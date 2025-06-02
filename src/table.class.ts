@@ -1,4 +1,4 @@
-import type {Cell, Column, TableMode} from "./types";
+import type {Cell, Column, TableMode, CellElement} from "./types";
 import TableCell from './cell.class';
 import DragAndDrop from "./drag-and-drop.class";
 
@@ -9,16 +9,20 @@ export default class Table {
   private readonly _tableEl = document.createElement("div");
   private readonly _rowHeadersContainerElement = document.createElement("div");
   private readonly _tableContentEl = document.createElement("div");
+  private readonly columnHeadersContainer = document.createElement("div");
 
   public readonly cellPaddingPx: number = 12;
   public readonly tableHeaderHeightPx: number = 28;
 
   private _cells = new Map<string, Cell>();
   private _columns = new Map<number, Column>();
+  private _tableColumnElements: HTMLDivElement[] = [];
+  private tableCellElements: CellElement[] = [];
   private _tableRowHeaderCellElements: HTMLDivElement[] = [];
   private _tableRowElements: HTMLDivElement[] = [];
   private tableMode: TableMode = 'read';
   private selectedCell: TableCell | null = null;
+  private anchors: DragAndDrop[] = [];
 
   constructor(
     private readonly container: HTMLDivElement,
@@ -53,6 +57,10 @@ export default class Table {
 
   get tableRowElements() {
     return this._tableRowElements;
+  }
+
+  get tableColumnElements() {
+    return this._tableColumnElements;
   }
 
   get cells() {
@@ -111,8 +119,7 @@ export default class Table {
   }
 
   private setColumns(): void {
-    const columnHeadersContainer = document.createElement("div");
-    columnHeadersContainer.classList.add("column-headers-container");
+    this.columnHeadersContainer.classList.add("column-headers-container");
 
     let cellsTotalWidth = this.rowHeaderCellWidthPx;
     for (let columnIndex = 0; columnIndex < this.columnChars.length; columnIndex += 1) {
@@ -121,7 +128,7 @@ export default class Table {
 
       this._columns.set(columnIndex, {
         title,
-        width
+        width,
       });
 
       const columnHeaderCellEl = document.createElement("div");
@@ -130,22 +137,60 @@ export default class Table {
       columnHeaderCellEl.textContent = title;
       columnHeaderCellEl.style.transform = `translateX(${cellsTotalWidth}px)`;
 
-      const dragAndDrop = new DragAndDrop(
+      this.columnHeadersContainer.appendChild(columnHeaderCellEl);
+      this._tableColumnElements.push(columnHeaderCellEl);
+
+      const anchorInstance = new DragAndDrop(
         this.container,
-        columnHeadersContainer,
+        this.columnHeadersContainer,
         cellsTotalWidth,
-        this.columns.get(columnIndex)!
+        columnIndex,
+        this.columns.get(columnIndex)!,
+        this.rowHeaderCellWidthPx,
+        this.rerenderColumns.bind(this),
       );
 
-      dragAndDrop.setColumnAnchor();
-
-      columnHeadersContainer.appendChild(columnHeaderCellEl);
+      this.anchors.push(anchorInstance);
 
       cellsTotalWidth += width + this.cellPaddingPx;
     }
 
-    columnHeadersContainer.style.width = `${cellsTotalWidth}px`;
-    this.tableEl.appendChild(columnHeadersContainer);
+    this.columnHeadersContainer.style.width = `${cellsTotalWidth}px`;
+    this.tableEl.appendChild(this.columnHeadersContainer);
+  }
+
+  protected rerenderColumns(changedColumnIndex: number, changedCellTranslateX: number): void {
+    let totalTranslateXPx = changedCellTranslateX;
+
+    for (let columnIndex = changedColumnIndex; columnIndex < this.tableColumnElements.length; columnIndex += 1) {
+      const column = this.columns.get(columnIndex)!;
+      const cellRightPx = totalTranslateXPx + column.width;
+      this.anchors[columnIndex].setLeftPosition(cellRightPx);
+
+      if (columnIndex === changedColumnIndex) {
+        this.tableColumnElements[columnIndex].style.width = `${column.width}px`;
+      }
+
+      this.tableColumnElements[columnIndex].style.transform = `translateX(${totalTranslateXPx}px)`;
+
+      this.tableCellElements
+        .filter(({ columnIndex: cellColumnIndex }) => cellColumnIndex ===  columnIndex)
+        .forEach((cell: CellElement) => {
+          if (cell.columnIndex === changedColumnIndex) {
+            cell.DOMElement.style.width = `${column.width}px`;
+          }
+
+          cell.DOMElement.style.transform = `translateX(${totalTranslateXPx - this.rowHeaderCellWidthPx}px)`;
+        });
+
+      totalTranslateXPx = cellRightPx + this.cellPaddingPx;
+    }
+
+    this.columnHeadersContainer.style.width = `${totalTranslateXPx}px`;
+
+    this.tableRowElements.forEach((rowEl: HTMLElement) => {
+      rowEl.style.width = `${totalTranslateXPx - this.rowHeaderCellWidthPx}px`;
+    })
   }
 
   private setCells(): void {
@@ -155,7 +200,7 @@ export default class Table {
           formula: '',
           calculatedValue: `${rowIndex}, ${columnIndex}`,
           type: 'String',
-          formating: []
+          formating: [],
         });
       }
     }
@@ -181,6 +226,12 @@ export default class Table {
       this.columns.forEach((column, columnIndex) => {
         const cellElement = this.getCellElement(rowIndex, column, columnIndex, previousCellsWidth);
         rowEl.appendChild(cellElement);
+
+        this.tableCellElements.push({
+          DOMElement: cellElement,
+          rowIndex,
+          columnIndex,
+        });
 
         previousCellsWidth += column.width + this.cellPaddingPx;
       });

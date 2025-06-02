@@ -5,22 +5,35 @@ export default class DragAndDrop {
   private dragOverListener: ((event: DragEvent) => void) | null = null;
   private anchorLeftPositionPx: number = 0;
   private boundaries: number[] = [];
+  private readonly leftBoundaryOffset: number = 10;
+  private readonly rightBoundaryOffset: number = 30;
 
   constructor(
     private readonly tableContainer: HTMLDivElement,
     private readonly columnHeadersContainer: HTMLDivElement,
-    private readonly cellTranslateX: number,
-    private column: Column
+    private cellTranslateX: number,
+    private readonly columnIndex: number,
+    private column: Column,
+    private readonly rowHeaderCellWidthPx: number,
+    private readonly rerenderColumns: (changedColumnIndex: number, changedCellTranslateX: number) => void,
   ) {
-    const boundaryOffset = 30;
-    const leftBoundary = this.cellTranslateX + boundaryOffset;
-    const rightBoundary = this.tableContainer.getBoundingClientRect().right - boundaryOffset;
+    const leftBoundary = this.cellTranslateX + this.leftBoundaryOffset;
+    const rightBoundary = this.tableContainer.getBoundingClientRect().right - this.rightBoundaryOffset;
 
     this.anchorLeftPositionPx = this.cellTranslateX + this.column.width;
     this.boundaries = [leftBoundary, rightBoundary];
+
+    this.setColumnAnchor();
   }
 
-  public setColumnAnchor(): void {
+  public setLeftPosition(leftPositionPx: number) {
+    this.anchorLeftPositionPx = leftPositionPx;
+    this.columnAnchorEl.style.transform = `translateX(${this.anchorLeftPositionPx}px)`;
+    this.cellTranslateX = this.anchorLeftPositionPx - this.column.width;
+    this.boundaries[0] = this.cellTranslateX + this.leftBoundaryOffset;
+  }
+
+  private setColumnAnchor(): void {
     this.columnAnchorEl.classList.add("column-anchor");
     this.columnAnchorEl.setAttribute("draggable", "true");
     this.columnAnchorEl.style.transform = `translateX(${this.anchorLeftPositionPx}px)`;
@@ -41,12 +54,17 @@ export default class DragAndDrop {
       this.listenDragOverTableContainer(event);
     };
 
+
     this.tableContainer.style.overflow = "hidden";
     this.tableContainer.addEventListener('dragover', this.dragOverListener);
   }
 
-  private dragStartListener() {
+  private dragStartListener(event: DragEvent) {
     this.columnAnchorEl.classList.add("active");
+
+    const transparentImg = new Image();
+    transparentImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';  // пустое изображение 1x1
+    event.dataTransfer!.setDragImage(transparentImg, 0, 0);
   }
 
   private dragEndListener() {
@@ -55,11 +73,12 @@ export default class DragAndDrop {
 
     const cellRightPositionPx = Number(this.columnAnchorEl.style.transform.slice(11).slice(0, -3));
     this.column.width = cellRightPositionPx - this.cellTranslateX;
-    console.log(this.column);
 
     if (this.dragOverListener) {
       this.tableContainer.removeEventListener("dragover", this.dragOverListener);
     }
+
+    this.rerenderColumns(this.columnIndex, this.cellTranslateX);
   }
 
   private listenDragOverTableContainer(event: MouseEvent) {
@@ -67,8 +86,14 @@ export default class DragAndDrop {
 
       const [ leftBoundary, rightBoundary ] = this.boundaries;
       const containerRect = this.tableContainer.getBoundingClientRect();
-      const minTranslateXPx = Math.max(leftBoundary, event.clientX - containerRect.left);
-      const translateXPx = Math.min(rightBoundary, minTranslateXPx);
+      const scrollLeft = this.tableContainer.scrollLeft;
+      const scrollLeftWithHeaderRowWidth =  scrollLeft + this.rowHeaderCellWidthPx;
+      const cellLeftScrollShift = scrollLeftWithHeaderRowWidth > this.cellTranslateX
+        ? scrollLeftWithHeaderRowWidth - this.cellTranslateX
+        : 0;
+
+      const minTranslateXPx = Math.max(leftBoundary + cellLeftScrollShift, (event.clientX + scrollLeft) - containerRect.left);
+      const translateXPx = Math.min(rightBoundary + scrollLeft, minTranslateXPx);
 
       this.columnAnchorEl.style.transform = `translateX(${translateXPx}px)`;
       this.columnAnchorEl.style.top = `${containerRect.top}px`;

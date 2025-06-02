@@ -12,6 +12,12 @@ export type Cell = {
   formating: CellFormatOption[];
 }
 
+export type CellElement = {
+  DOMElement: HTMLDivElement;
+  rowIndex: number;
+  columnIndex: number;
+}
+
 export type CellType = 'Date' | 'String' | 'Number';
 
 export enum CellFormatOption {
