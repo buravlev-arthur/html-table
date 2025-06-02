@@ -327,6 +327,10 @@ export default class Table {
     const rowHeaderCellElement = this.tableRowHeaderCellElements[rowContentBlockIndex];
     const isNotLastRow = rowIndex < this.rows.size - 1;
 
+    if (!rowHeaderCellElement) {
+      return;
+    }
+
     rowHeaderCellElement.style.transform = `translateY(${previousRowsHeight + this.tableHeaderHeightPx + 1}px)`;
     rowHeaderCellElement.style.height = `${rowHeight}px`;
     rowHeaderCellElement.style.display = "flex";

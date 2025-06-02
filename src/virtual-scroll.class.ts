@@ -17,6 +17,7 @@ export default class VirtualScroll {
     private readonly availableRowsCount: number,
     private readonly defaultRowHeight: number,
   ) {
+    console.log('yes');
     this.init();
     this.addScrollListener();
   }
@@ -164,5 +165,7 @@ export default class VirtualScroll {
 
     this.observer.disconnect();
     this.container.removeEventListener('scroll', this.scrollHandler);
+    this.table = null;
+    this.container.innerHTML = '';
   }
 }
