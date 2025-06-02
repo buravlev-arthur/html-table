@@ -83,7 +83,6 @@ html, body {
     border-left-style: solid;
     border-left-width: 0;
 }
-
 .row-headers-container {
     position: sticky;
     left: 0;
@@ -113,6 +112,7 @@ html, body {
     z-index: 6;
     cursor: col-resize;
 }
+
 
 .column-anchor[draggable="true"] {
     cursor: col-resize !important;
@@ -204,4 +204,8 @@ html, body {
 
 .row-anchor.active::after {
     display: block;
+}
+
+.column-headers-container >.column-anchor:last-child {
+    display: none;
 }
