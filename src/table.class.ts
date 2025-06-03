@@ -191,6 +191,7 @@ export default class Table {
     this.columnHeadersContainer.style.width = `${cellsTotalWidth}px`;
     this.tableEl.appendChild(this.columnHeadersContainer);
     this._cellsTotalWidth = cellsTotalWidth;
+    this.tableEl.style.width = `${cellsTotalWidth}px`;
   }
 
   protected rerenderColumns(changedColumnIndex: number, changedCellTranslateX: number): void {
@@ -223,6 +224,7 @@ export default class Table {
     }
 
     this.columnHeadersContainer.style.width = `${totalTranslateXPx}px`;
+    this.tableEl.style.width = `${totalTranslateXPx}px`;
     this._cellsTotalWidth = totalTranslateXPx;
 
     this.tableRowElements.forEach((rowEl: HTMLElement) => {
