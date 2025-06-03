@@ -1,9 +1,12 @@
 import type { Column } from "./types";
 
 export default class ColumnDragAndDrop {
-  private columnAnchorEl: HTMLElement = document.createElement("div");
+  private readonly _columnAnchorEl: HTMLDivElement = document.createElement("div");
   private dragOverListener: ((event: DragEvent) => void) | null = null;
   private mouseUpListener: ((event: MouseEvent) => void) | null = null;
+  private dragStartListener: ((event: DragEvent) => void) | null = null;
+  private dragEndListener: ((event: DragEvent) => void) | null = null;
+  private mouseDownListener: ((event: MouseEvent) => void) | null = null;
   private anchorLeftPositionPx: number = 0;
   private boundaries: number[] = [];
   private readonly leftBoundaryOffset: number = 10;
@@ -17,6 +20,7 @@ export default class ColumnDragAndDrop {
     private column: Column,
     private readonly rowHeaderCellWidthPx: number,
     private readonly rerenderColumns: (changedColumnIndex: number, changedCellTranslateX: number) => void,
+    private readonly toggleColumnAnchorsVisibility: (show: boolean) => void,
   ) {
     const leftBoundary = this.cellTranslateX + this.leftBoundaryOffset;
     const rightBoundary = this.tableContainer.getBoundingClientRect().right - this.rightBoundaryOffset;
@@ -25,6 +29,10 @@ export default class ColumnDragAndDrop {
     this.boundaries = [leftBoundary, rightBoundary];
 
     this.setColumnAnchor();
+  }
+
+  public get columnAnchorEl(): HTMLDivElement {
+    return this._columnAnchorEl;
   }
 
   public setLeftPosition(leftPositionPx: number) {
@@ -45,9 +53,21 @@ export default class ColumnDragAndDrop {
   }
 
   private listenDragAndDropColumn() {
-    this.columnAnchorEl.addEventListener("mousedown", this.listenMouseDownEvent.bind(this));
-    this.columnAnchorEl.addEventListener("dragstart", this.dragStartListener.bind(this));
-    this.columnAnchorEl.addEventListener("dragend", this.dragEndListener.bind(this));
+    this.mouseDownListener = () => {
+      this.listenMouseDownEvent();
+    }
+
+    this.dragStartListener = (event: DragEvent) => {
+      this.listenDragStartEvent(event);
+    }
+
+    this.dragEndListener = () => {
+      this.listenDragEndEvent();
+    }
+
+    this.columnAnchorEl.addEventListener("mousedown", this.mouseDownListener);
+    this.columnAnchorEl.addEventListener("dragstart", this.dragStartListener);
+    this.columnAnchorEl.addEventListener("dragend", this.dragEndListener);
   }
 
   private listenMouseDownEvent() {
@@ -65,21 +85,23 @@ export default class ColumnDragAndDrop {
     this.tableContainer.addEventListener('dragover', this.dragOverListener);
   }
 
-  private dragStartListener(event: DragEvent) {
+  private listenDragStartEvent(event: DragEvent) {
     if (this.mouseUpListener) {
       this.columnAnchorEl.removeEventListener("mouseup", this.mouseUpListener);
       this.mouseUpListener = null;
     }
 
     this.columnAnchorEl.classList.add("active");
+    this.toggleColumnAnchorsVisibility(false);
 
     const transparentImg = new Image();
     transparentImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';  // пустое изображение 1x1
     event.dataTransfer!.setDragImage(transparentImg, 0, 0);
   }
 
-  private dragEndListener() {
+  private listenDragEndEvent() {
     this.columnAnchorEl.classList.remove("active");
+    this.toggleColumnAnchorsVisibility(true);
     this.tableContainer.style.overflow = "auto";
 
     const cellRightPositionPx = Number(this.columnAnchorEl.style.transform.slice(11).slice(0, -3));
@@ -95,6 +117,11 @@ export default class ColumnDragAndDrop {
 
   private listenMouseUpEvent(): void {
     this.tableContainer.style.overflow = "auto";
+
+    if (this.dragOverListener) {
+      this.tableContainer.removeEventListener("dragover", this.dragOverListener);
+      this.dragOverListener = null;
+    }
   }
 
   private listenDragOverTableContainer(event: MouseEvent) {
@@ -113,5 +140,32 @@ export default class ColumnDragAndDrop {
 
     this.columnAnchorEl.style.transform = `translateX(${translateXPx}px)`;
     this.columnAnchorEl.style.top = `${containerRect.top}px`;
+  }
+
+  public destroy(): void {
+    if (this.mouseDownListener) {
+      this.columnAnchorEl.removeEventListener("mousedown", this.mouseDownListener);
+      this.mouseDownListener = null;
+    }
+
+    if (this.dragStartListener) {
+      this.columnAnchorEl.removeEventListener("dragstart", this.dragStartListener);
+      this.dragStartListener = null;
+    }
+
+    if (this.dragEndListener) {
+      this.columnAnchorEl.removeEventListener("dragend", this.dragEndListener);
+      this.dragEndListener = null;
+    }
+
+    if (this.mouseUpListener) {
+      this.columnAnchorEl.removeEventListener("mouseup", this.mouseUpListener);
+      this.mouseUpListener = null;
+    }
+
+    if (this.dragOverListener) {
+      this.tableContainer.removeEventListener("dragover", this.dragOverListener);
+      this.dragOverListener = null;
+    }
   }
 }

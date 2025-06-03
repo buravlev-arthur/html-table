@@ -24,6 +24,7 @@ export default class Table {
   private _tableRowElements: HTMLDivElement[] = [];
   private tableMode: TableMode = 'read';
   private selectedCell: TableCell | null = null;
+  private clickCellListener: ((event: MouseEvent) => void) | null = null;
   private columnAnchors: ColumnDragAndDrop[] = [];
   private rowAnchors: RowDragAndDrop[] = [];
   private _cellsTotalWidth: number = 0;
@@ -110,7 +111,7 @@ export default class Table {
   }
 
   listenTableClick(): void {
-    this.container.addEventListener('click', (event: MouseEvent) => {
+    this.clickCellListener = (event: MouseEvent) => {
       const clickedEl = event.target;
       const isCellEl = Boolean(clickedEl) && (clickedEl as HTMLElement).hasAttribute('data-row');
 
@@ -131,7 +132,9 @@ export default class Table {
       }
 
       this.selectedCell = cell;
-    });
+    };
+
+    this.container.addEventListener('click', this.clickCellListener);
   }
 
   public cancelCellSelection(): void {
@@ -141,6 +144,7 @@ export default class Table {
   private unselectCell(): void {
     if (this.selectedCell) {
       this.selectedCell.unselectCell();
+      this.selectedCell.destroy();
       this.selectedCell = null;
     }
   }
@@ -181,6 +185,7 @@ export default class Table {
         this.columns.get(columnIndex)!,
         this.rowHeaderCellWidthPx,
         this.rerenderColumns.bind(this),
+        this.toggleColumnAnchorsVisibility.bind(this),
       );
 
       this.columnAnchors.push(anchorInstance);
@@ -192,6 +197,30 @@ export default class Table {
     this.tableEl.appendChild(this.columnHeadersContainer);
     this._cellsTotalWidth = cellsTotalWidth;
     this.tableEl.style.width = `${cellsTotalWidth}px`;
+  }
+
+  toggleRowAnchorsVisibility(show: boolean): void {
+    this.rowAnchors.forEach(rowAnchor => {
+      const isActive = rowAnchor.rowAnchorEl.classList.contains('active');
+
+      if (isActive) {
+        return;
+      }
+
+      rowAnchor.rowAnchorEl.style.display = show ? 'block' : 'none';
+    });
+  }
+
+  toggleColumnAnchorsVisibility(show: boolean): void {
+    this.columnAnchors.forEach(columnAnchor => {
+      const isActive = columnAnchor.columnAnchorEl.classList.contains('active');
+
+      if (isActive) {
+        return;
+      }
+
+      columnAnchor.columnAnchorEl.style.display = show ? 'block' : 'none';
+    });
   }
 
   protected rerenderColumns(changedColumnIndex: number, changedCellTranslateX: number): void {
@@ -277,7 +306,8 @@ export default class Table {
         rowIndex,
         this.rows,
         this.tableHeaderHeightPx,
-        this.rerenderRows.bind(this)
+        this.rerenderRows.bind(this),
+        this.toggleRowAnchorsVisibility.bind(this),
       );
 
       this.rowAnchors.push(anchorInstance)
@@ -364,5 +394,34 @@ export default class Table {
       this.tableRowHeaderCellElements[index].style.display = "none";
       this.rowAnchors[index].hideRowAnchorEl();
     }
+  }
+
+  public destroy(): void {
+    if (this.clickCellListener) {
+      this.container.removeEventListener('click', this.clickCellListener);
+    }
+
+    if (this.selectedCell) {
+      this.selectedCell.destroy();
+      this.selectedCell = null;
+    }
+
+    this.cells.clear();
+    this.columns.clear();
+    this.rows.clear();
+    this._tableColumnElements = [];
+    this.tableCellElements = [];
+    this._tableRowHeaderCellElements = [];
+    this._tableRowElements = [];
+
+    this.rowAnchors.forEach((rowAnchor) => {
+      rowAnchor.destroy();
+    });
+    this.rowAnchors = [];
+
+    this.columnAnchors.forEach((columnAnchor) => {
+      columnAnchor.destroy();
+    });
+    this.columnAnchors = [];
   }
 }

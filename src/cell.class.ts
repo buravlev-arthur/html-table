@@ -19,8 +19,6 @@ export default class Cell {
     this.cellColIndex = Number(this.cellEl.getAttribute('data-column'));
 
     this.cellData = this.cells.get(`${this.cellRowIndex}_${this.cellColIndex}`)!;
-
-    console.log(this.cellRowIndex, this.cellColIndex, this.cellData);
   }
 
   public selectCell(): void {
@@ -42,5 +40,9 @@ export default class Cell {
     this.cellEl.style.borderRight = `1px solid ${this.defaultCellBorderRightColor}`;
 
     this.currentCellWidthPx = updatedCellWidth;
+  }
+
+  public destroy(): void {
+    this.cellData = null;
   }
 }

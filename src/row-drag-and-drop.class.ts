@@ -1,10 +1,13 @@
 export default class RowDragAndDrop {
-  private rowAnchorEl: HTMLElement = document.createElement("div");
+  private readonly _rowAnchorEl: HTMLDivElement = document.createElement("div");
   private anchorTopPositionPx = 0;
   private boundaries: number[] = [];
   private topBoundaryOffsetPx = 10;
   private bottomBoundaryOffsetPx = 20;
+  private dragStartListener: ((event: DragEvent) => void) | null = null;
+  private dragEndListener: ((event: DragEvent) => void) | null = null;
   private dragOverListener: ((event: DragEvent) => void) | null = null;
+  private mouseDownListener: ((event: MouseEvent) => void) | null = null;
   private mouseUpListener: ((event: MouseEvent) => void) | null = null;
 
   constructor(
@@ -16,7 +19,8 @@ export default class RowDragAndDrop {
     private readonly rowContentBlockIndex: number,
     private readonly rows: Map<number, number>,
     private readonly tableHeaderHeightPx: number,
-    private readonly rerenderRows: () => void
+    private readonly rerenderRows: () => void,
+    private readonly toggleRowAnchorsVisibility: (show: boolean) => void,
   ) {
     const topBoundary = this.cellTranslateY + this.topBoundaryOffsetPx;
     const bottomBoundary = this.tableContainer.getBoundingClientRect().bottom - this.bottomBoundaryOffsetPx;
@@ -25,6 +29,10 @@ export default class RowDragAndDrop {
     this.boundaries = [topBoundary, bottomBoundary];
 
     this.setRowAnchor();
+  }
+
+  public get rowAnchorEl(): HTMLDivElement {
+    return this._rowAnchorEl;
   }
 
   public set rowIndex(rowIndex: number) {
@@ -61,9 +69,21 @@ export default class RowDragAndDrop {
   }
 
   private listenDragAndDropRow() {
-    this.rowAnchorEl.addEventListener("mousedown", this.listenMouseDownEvent.bind(this));
-    this.rowAnchorEl.addEventListener("dragstart", this.dragStartListener.bind(this));
-    this.rowAnchorEl.addEventListener("dragend", this.dragEndListener.bind(this));
+    this.mouseDownListener = () => {
+      this.listenMouseDownEvent();
+    }
+
+    this.dragStartListener = (event: DragEvent) => {
+      this.listenDragStartEvent(event);
+    }
+
+    this.dragEndListener = () => {
+      this.listenDragEndEvent();
+    }
+
+    this.rowAnchorEl.addEventListener("mousedown", this.mouseDownListener);
+    this.rowAnchorEl.addEventListener("dragstart", this.dragStartListener);
+    this.rowAnchorEl.addEventListener("dragend", this.dragEndListener);
   }
 
   private listenMouseDownEvent() {
@@ -83,23 +103,30 @@ export default class RowDragAndDrop {
 
   private listenMouseUpEvent(): void {
     this.tableContainer.style.overflow = "auto";
+
+    if (this.dragOverListener) {
+      this.tableContainer.removeEventListener("dragover", this.dragOverListener);
+      this.dragOverListener = null;
+    }
   }
 
-  private dragStartListener(event: DragEvent) {
+  private listenDragStartEvent(event: DragEvent) {
     if (this.mouseUpListener) {
       this.rowAnchorEl.removeEventListener("mouseup", this.mouseUpListener);
       this.mouseUpListener = null;
     }
 
     this.rowAnchorEl.classList.add("active");
+    this.toggleRowAnchorsVisibility(false);
 
     const transparentImg = new Image();
     transparentImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';  // пустое изображение 1x1
     event.dataTransfer!.setDragImage(transparentImg, 0, 0);
   }
 
-  private dragEndListener() {
+  private listenDragEndEvent() {
     this.rowAnchorEl.classList.remove("active");
+    this.toggleRowAnchorsVisibility(true);
     this.tableContainer.style.overflow = "auto";
 
     const cellBottomPositionPx = Number(this.rowAnchorEl.style.transform.slice(11).slice(0, -3));
@@ -132,5 +159,27 @@ export default class RowDragAndDrop {
 
     this.rowAnchorEl.style.transform = `translateY(${translateYPx}px)`;
     this.rowAnchorEl.style.left = `${containerRect.left}px`;
+  }
+
+  public destroy() {
+    if (this.mouseDownListener) {
+      this.rowAnchorEl.removeEventListener("mousedown", this.mouseDownListener);
+    }
+
+    if (this.dragStartListener) {
+      this.rowAnchorEl.removeEventListener("dragstart", this.dragStartListener);
+    }
+
+    if (this.dragEndListener) {
+      this.rowAnchorEl.removeEventListener("dragend", this.dragEndListener);
+    }
+
+    if (this.mouseUpListener) {
+      this.rowAnchorEl.removeEventListener("mouseup", this.mouseUpListener);
+    }
+
+    if (this.dragOverListener) {
+      this.tableContainer.removeEventListener("dragover", this.dragOverListener);
+    }
   }
 }
