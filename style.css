@@ -78,11 +78,18 @@ html, body {
     text-transform: capitalize;
     justify-content: center;
     color: #777;
-    font-weight: 600;
     border-left-color: #999;
     border-left-style: solid;
     border-left-width: 0;
 }
+
+.column-header-cell.selected {
+    font-weight: bold;
+    background: #cee0ff;
+    color: #444;
+    left: 1px;
+}
+
 .row-headers-container {
     position: sticky;
     left: 0;
@@ -93,13 +100,18 @@ html, body {
 .row-headers-container > .cell {
     width: 63px;
     justify-content: center;
-    font-weight: 600;
     color: #777;
 
     border-bottom: 1px solid #999;
     background: #f9f9f9;
     box-sizing: border-box;
     z-index: 1;
+}
+
+.row-headers-container > .cell.selected {
+    font-weight: bold;
+    background: #cee0ff;
+    color: #444;
 }
 
 .column-anchor {

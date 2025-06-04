@@ -142,6 +142,10 @@ export default class Table {
   }
 
   private unselectCell(): void {
+    this.removeSelectedCell();
+  }
+
+  private removeSelectedCell(): void {
     if (this.selectedCell) {
       this.selectedCell.unselectCell();
       this.selectedCell.destroy();
@@ -170,6 +174,7 @@ export default class Table {
 
       const columnHeaderCellEl = document.createElement("div");
       columnHeaderCellEl.classList.add("column-header-cell", "cell");
+      columnHeaderCellEl.setAttribute('data-column-header-index', `${columnIndex}`);
       columnHeaderCellEl.style.width = `${width}px`;
       columnHeaderCellEl.textContent = title;
       columnHeaderCellEl.style.transform = `translateX(${cellsTotalWidth}px)`;
@@ -335,6 +340,7 @@ export default class Table {
   private getRowHeaderCell(rowIndex: number): HTMLDivElement {
     const rowHeaderCellElement = document.createElement("div");
     rowHeaderCellElement.classList.add("cell");
+    rowHeaderCellElement.setAttribute('data-row-header-index', `${rowIndex}`)
     rowHeaderCellElement.style.height = `${this.rows.get(rowIndex)}px`;
     rowHeaderCellElement.textContent = String(rowIndex + 1);
     rowHeaderCellElement.style.display = "none";
@@ -396,14 +402,15 @@ export default class Table {
     }
   }
 
+
+
   public destroy(): void {
     if (this.clickCellListener) {
       this.container.removeEventListener('click', this.clickCellListener);
     }
 
     if (this.selectedCell) {
-      this.selectedCell.destroy();
-      this.selectedCell = null;
+      this.removeSelectedCell();
     }
 
     this.cells.clear();
