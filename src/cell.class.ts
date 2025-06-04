@@ -6,8 +6,8 @@ export default class Cell {
 
   private currentCellWidthPx: number = 0;
   private cellData: CellData | null = null;
-  private cellRowIndex: number = 0;
-  private cellColIndex: number = 0;
+  private _cellRowIndex: number = 0;
+  private _cellColIndex: number = 0;
   private columnHeaderCellEl: HTMLDivElement | null = null;
   private rowHeaderCellEl: HTMLDivElement | null = null;
 
@@ -17,12 +17,20 @@ export default class Cell {
     private readonly cellPaddingPx: number
   ) {
     this.currentCellWidthPx = Number(this.cellEl.style.width.slice(0, -2));
-    this.cellRowIndex = Number(this.cellEl.getAttribute('data-row'));
-    this.cellColIndex = Number(this.cellEl.getAttribute('data-column'));
+    this._cellRowIndex = Number(this.cellEl.getAttribute('data-row'));
+    this._cellColIndex = Number(this.cellEl.getAttribute('data-column'));
     this.columnHeaderCellEl = document.querySelector(`[data-column-header-index="${this.cellColIndex}"]`);
     this.rowHeaderCellEl = document.querySelector(`[data-row-header-index="${this.cellRowIndex}"]`);
 
     this.cellData = this.cells.get(`${this.cellRowIndex}_${this.cellColIndex}`)!;
+  }
+
+  public get cellRowIndex(): number {
+    return this._cellRowIndex;
+  }
+
+  public get cellColIndex(): number {
+    return this._cellColIndex;
   }
 
   public selectCell(): void {

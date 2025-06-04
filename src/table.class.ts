@@ -31,10 +31,11 @@ export default class Table {
 
   constructor(
     private readonly container: HTMLDivElement,
-    private readonly availableRowsCount: number,
+    private availableRowsCount: number,
     private readonly rowDefaultHeight: number,
     private readonly rowsBuffer: number,
     private readonly renderVisibleRows: () => void,
+    private readonly setAvailableRowsCount: (count: number) => number,
   ) {
     this.init();
   }
@@ -402,7 +403,81 @@ export default class Table {
     }
   }
 
+  private addRow(position: 'before' | 'after'): void {
+    if (!this.selectedCell) {
+      return;
+    }
 
+    const selectedRowIndex = this.selectedCell.cellRowIndex;
+    const addedRowIndex = position === 'before' ? selectedRowIndex : selectedRowIndex + 1;
+
+    this.availableRowsCount = this.setAvailableRowsCount(this.availableRowsCount + 1)
+
+    let previousRowHeight = 0;
+    let previousCellsData: Cell[] = [];
+
+    for (let rowIndex = addedRowIndex; rowIndex < this.availableRowsCount; rowIndex += 1) {
+      const isFirstRow = rowIndex === addedRowIndex;
+      const rowCurrentHeight = this.rows.get(rowIndex) ?? this.rowDefaultHeight;
+      const cellsCurrentData: Cell[] = [];
+
+      this._rows.set(rowIndex, isFirstRow ? this.rowDefaultHeight : previousRowHeight);
+
+      for (let columnIndex = 0; columnIndex < this.columns.size; columnIndex += 1) {
+        const cellKey = `${rowIndex}_${columnIndex}`;
+        const cellCurrentData = this._cells.get(cellKey)!;
+
+        const cellData = isFirstRow
+          ? {
+              formula: '',
+              calculatedValue: `Нов.с.: ${rowIndex},${columnIndex}`,
+              type: 'String',
+              formating: [],
+            } as Cell
+          : previousCellsData[columnIndex];
+
+        this._cells.set(cellKey, cellData);
+        cellsCurrentData.push(cellCurrentData);
+      }
+
+      previousRowHeight = rowCurrentHeight;
+      previousCellsData = cellsCurrentData;
+    }
+
+    this.rerenderRows();
+  }
+
+  private removeRow(): void {
+    if (!this.selectedCell) {
+      return;
+    }
+
+    const selectedRowIndex = this.selectedCell.cellRowIndex;
+    const updatedAvailableRowCount = this.availableRowsCount - 1;
+    const lastRowIndex = this.rows.size - 1;
+
+    this.availableRowsCount = this.setAvailableRowsCount(updatedAvailableRowCount);
+
+    for (let rowIndex = selectedRowIndex; rowIndex < updatedAvailableRowCount; rowIndex += 1) {
+      const nextRowHeight = this.rows.get(rowIndex + 1) ?? this.rowDefaultHeight;
+      this._rows.set(rowIndex, nextRowHeight);
+
+      for (let columnIndex = 0; columnIndex < this.columns.size; columnIndex += 1) {
+        const cellKey = `${rowIndex}_${columnIndex}`;
+        const nextRowCellKey = `${rowIndex + 1}_${columnIndex}`;
+        const cellData = this.cells.get(nextRowCellKey)!;
+
+        this._cells.set(cellKey, cellData);
+      }
+    }
+
+    for (let columnIndex = 0; columnIndex < this.columns.size; columnIndex += 1) {
+      this.cells.delete(`${lastRowIndex}_${columnIndex}`);
+    }
+
+    this.rows.delete(lastRowIndex);
+    this.rerenderRows()
+  }
 
   public destroy(): void {
     if (this.clickCellListener) {

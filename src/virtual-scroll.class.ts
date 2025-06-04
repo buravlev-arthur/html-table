@@ -14,11 +14,15 @@ export default class VirtualScroll {
 
   constructor(
     private readonly container: HTMLDivElement,
-    private readonly availableRowsCount: number,
+    private _availableRowsCount: number,
     private readonly defaultRowHeight: number,
   ) {
     this.init();
     this.addScrollListener();
+  }
+
+  public get availableRowsCount(): number {
+    return this._availableRowsCount;
   }
 
   private init(): void {
@@ -28,6 +32,7 @@ export default class VirtualScroll {
       this.defaultRowHeight,
       this.rowsBuffer,
       this.renderVisibleRows.bind(this),
+      this.setAvailableRowsCount.bind(this),
     );
 
     this.itemEl = this.table.tableEl;
@@ -35,6 +40,19 @@ export default class VirtualScroll {
 
     this.createSentinelElements();
     this.renderVisibleRows();
+  }
+
+  private setAvailableRowsCount(availableRowsCount: number): number {
+    this._availableRowsCount = availableRowsCount;
+
+    if (this.scrollHandler) {
+      this.container.removeEventListener('scroll', this.scrollHandler);
+      this.scrollHandler = null;
+    }
+
+    this.addScrollListener();
+
+    return this.availableRowsCount;
   }
 
   private createSentinelElements(): void {
