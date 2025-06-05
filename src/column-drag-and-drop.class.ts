@@ -139,7 +139,7 @@ export default class ColumnDragAndDrop {
     const translateXPx = Math.min(rightBoundary + scrollLeft, minTranslateXPx);
 
     this.columnAnchorEl.style.transform = `translateX(${translateXPx}px)`;
-    this.columnAnchorEl.style.top = `${containerRect.top}px`;
+    this.columnAnchorEl.style.top = '0px';
   }
 
   public destroy(): void {

@@ -2,6 +2,7 @@ import type {Cell, Column, TableMode, CellElement} from "./types";
 import TableCell from './cell.class';
 import ColumnDragAndDrop from "./column-drag-and-drop.class";
 import RowDragAndDrop from "./row-drag-and-drop.class";
+import ActionsPanel from "./actions-panel.class";
 
 export default class Table {
   private readonly columnChars: string[] = [...'abcdefghijklmnopqrstuvwxyz'];
@@ -28,6 +29,7 @@ export default class Table {
   private columnAnchors: ColumnDragAndDrop[] = [];
   private rowAnchors: RowDragAndDrop[] = [];
   private _cellsTotalWidth: number = 0;
+  private actionsPanel: ActionsPanel | null = null;
 
   constructor(
     private readonly container: HTMLDivElement,
@@ -41,6 +43,13 @@ export default class Table {
   }
 
   private init(): void {
+    this.actionsPanel = new ActionsPanel(
+      this.addRow.bind(this),
+      this.removeRow.bind(this),
+      this.addColumn.bind(this),
+      this.removeColumn.bind(this),
+    );
+
     this.setRows();
 
     this._tableEl.classList.add("table");
@@ -113,6 +122,10 @@ export default class Table {
 
   listenTableClick(): void {
     this.clickCellListener = (event: MouseEvent) => {
+      if (!this.actionsPanel) {
+        return;
+      }
+
       const clickedEl = event.target;
       const isCellEl = Boolean(clickedEl) && (clickedEl as HTMLElement).hasAttribute('data-row');
 
@@ -130,6 +143,11 @@ export default class Table {
 
       if (this.tableMode === 'read') {
         cell.selectCell();
+
+        const isRowsCountMoreThanOne = this.rows.size > 2;
+        const isColumnsCountMoreThanOne = this.columns.size > 2;
+
+        this.actionsPanel.setButtonsAvailable(isRowsCountMoreThanOne, isColumnsCountMoreThanOne);
       }
 
       this.selectedCell = cell;
@@ -151,6 +169,10 @@ export default class Table {
       this.selectedCell.unselectCell();
       this.selectedCell.destroy();
       this.selectedCell = null;
+
+      if (this.actionsPanel) {
+        this.actionsPanel.setButtonsDisabled();
+      }
     }
   }
 
@@ -431,7 +453,7 @@ export default class Table {
         const cellData = isFirstRow
           ? {
               formula: '',
-              calculatedValue: `Нов.с.: ${rowIndex},${columnIndex}`,
+              calculatedValue: '',
               type: 'String',
               formating: [],
             } as Cell
@@ -477,7 +499,7 @@ export default class Table {
     }
 
     this.rows.delete(lastRowIndex);
-    this.rerenderRows()
+    this.rerenderRows();
   }
 
   private getColumnName(columnIndex: number): string {
@@ -503,9 +525,12 @@ export default class Table {
 
     const selectedColumnIndex = this.selectedCell.cellColIndex;
     const addedColumnIndex = position === 'before' ? selectedColumnIndex : selectedColumnIndex + 1;
-    const addedColumnTranslateXPx = Number(
-      this.tableColumnElements[addedColumnIndex].style.transform.slice(11).slice(0, -3)
-    );
+    const addedColumnTranslateXPx = this.tableColumnElements[addedColumnIndex]
+      ? Number(this.tableColumnElements[addedColumnIndex].style.transform.slice(11).slice(0, -3))
+      : Number(
+          this.tableColumnElements[addedColumnIndex - 1].style.transform.slice(11).slice(0, -3)
+        ) + this.columns.get(addedColumnIndex - 1)!.width + this.cellPaddingPx
+
     const columnTitle = this.getColumnName(this.columns.size);
     const lastCurrentColumnWidth = this.columns.get(this.columns.size - 2)!.width;
 
@@ -542,11 +567,11 @@ export default class Table {
         const cellData = isFirstColumn
           ? {
             formula: '',
-            calculatedValue: `Нов.к.: ${rowIndex},${columnIndex}`,
+            calculatedValue: '',
             type: 'String',
             formating: [],
           } as Cell
-          : previousCellsData[columnIndex];
+          : previousCellsData[rowIndex];
 
         this.cells.set(cellKey, cellData);
 

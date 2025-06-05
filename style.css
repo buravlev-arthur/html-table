@@ -7,6 +7,76 @@ html, body {
     scroll-behavior: smooth;
 }
 
+#actions-panel {
+    width: calc(100% - 28px);
+    height: 50px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0 14px;
+    gap: 16px;
+    background: #f8f8f8;
+    border-bottom: 1px solid #888;
+}
+
+#add-row-top {
+    background: url('./src/assets/add-row-top.svg') no-repeat center center;
+}
+
+#add-row-bottom {
+    background: url('./src/assets/add-row-bottom.svg') no-repeat center center;
+}
+
+#add-column-left {
+    background: url('./src/assets/add-column-left.svg') no-repeat center center;
+}
+
+#add-column-right {
+    background: url('./src/assets/add-column-right.svg') no-repeat center center;
+}
+
+#remove-row {
+    background: url('./src/assets/remove-row.svg') no-repeat center center;
+}
+
+#remove-column {
+    background: url('./src/assets/remove-column.svg') no-repeat center center;
+}
+
+.add-remove-rows-columns-btns-container {
+    width: 200px;
+    border-radius: 4px;
+    padding: 4px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    background: #fff;
+}
+
+.square-btn {
+    width: 24px;
+    height: 24px;
+    border: 1px solid #fff;
+    border-radius: 4px;
+    opacity: 0.8;
+    transition-duration: 0.2s;
+    cursor: pointer;
+}
+
+.square-btn:hover,
+.square-btn:focus {
+    opacity: 1;
+    border-color: #8bb1ff;
+}
+
+.square-btn[disabled],
+.square-btn[disabled]:hover,
+.square-btn[disabled]:focus {
+    opacity: 0.4;
+    border-color: #fff;
+}
+
 .column-headers-container {
     position: sticky;
     height: 28px;
@@ -19,7 +89,7 @@ html, body {
 
 #viewport {
     overflow: auto;
-    height: 100%;
+    height: calc(100% - 51px);
 }
 
 #viewport::before {
@@ -31,7 +101,7 @@ html, body {
     background: #f8f8f8;
     width: 62px;
     height: 28px;
-    top: 0;
+    top: 51px;
     left: 0;
     z-index: 4;
 }
@@ -219,6 +289,6 @@ html, body {
     display: block;
 }
 
-.column-headers-container >.column-anchor:last-child {
-    display: none;
+.column-headers-container > .column-anchor:last-child {
+    display: none !important;
 }
