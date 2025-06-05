@@ -75,7 +75,7 @@ html, body {
 }
 
 .column-header-cell {
-    text-transform: capitalize;
+    text-transform: uppercase;
     justify-content: center;
     color: #777;
     border-left-color: #999;

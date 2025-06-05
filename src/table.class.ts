@@ -165,7 +165,7 @@ export default class Table {
 
     let cellsTotalWidth = this.rowHeaderCellWidthPx;
     for (let columnIndex = 0; columnIndex < this.columnChars.length; columnIndex += 1) {
-      const title = this.columnChars[columnIndex];
+      const title = this.getColumnName(columnIndex);
       const width = this.columnDefaultWidthPx;
 
       this._columns.set(columnIndex, {
@@ -173,28 +173,8 @@ export default class Table {
         width,
       });
 
-      const columnHeaderCellEl = document.createElement("div");
-      columnHeaderCellEl.classList.add("column-header-cell", "cell");
-      columnHeaderCellEl.setAttribute('data-column-header-index', `${columnIndex}`);
-      columnHeaderCellEl.style.width = `${width}px`;
-      columnHeaderCellEl.textContent = title;
-      columnHeaderCellEl.style.transform = `translateX(${cellsTotalWidth}px)`;
-
-      this.columnHeadersContainer.appendChild(columnHeaderCellEl);
-      this._tableColumnElements.push(columnHeaderCellEl);
-
-      const anchorInstance = new ColumnDragAndDrop(
-        this.container,
-        this.columnHeadersContainer,
-        cellsTotalWidth,
-        columnIndex,
-        this.columns.get(columnIndex)!,
-        this.rowHeaderCellWidthPx,
-        this.rerenderColumns.bind(this),
-        this.toggleColumnAnchorsVisibility.bind(this),
-      );
-
-      this.columnAnchors.push(anchorInstance);
+      this.addColumnHeaderCellElements(columnIndex, width, title, cellsTotalWidth);
+      this.addColumnAnchor(cellsTotalWidth, columnIndex);
 
       cellsTotalWidth += width + this.cellPaddingPx;
     }
@@ -203,6 +183,33 @@ export default class Table {
     this.tableEl.appendChild(this.columnHeadersContainer);
     this._cellsTotalWidth = cellsTotalWidth;
     this.tableEl.style.width = `${cellsTotalWidth}px`;
+  }
+
+  private addColumnAnchor(cellsTotalWidth: number, columnIndex: number): void {
+    const anchorInstance = new ColumnDragAndDrop(
+      this.container,
+      this.columnHeadersContainer,
+      cellsTotalWidth,
+      columnIndex,
+      this.columns.get(columnIndex)!,
+      this.rowHeaderCellWidthPx,
+      this.rerenderColumns.bind(this),
+      this.toggleColumnAnchorsVisibility.bind(this),
+    );
+
+    this.columnAnchors.push(anchorInstance);
+  }
+
+  private addColumnHeaderCellElements(columnIndex: number, width: number, title: string, cellsTotalWidth: number): void {
+    const columnHeaderCellEl = document.createElement("div");
+    columnHeaderCellEl.classList.add("column-header-cell", "cell");
+    columnHeaderCellEl.setAttribute('data-column-header-index', `${columnIndex}`);
+    columnHeaderCellEl.style.width = `${width}px`;
+    columnHeaderCellEl.textContent = title;
+    columnHeaderCellEl.style.transform = `translateX(${cellsTotalWidth}px)`;
+
+    this.columnHeadersContainer.appendChild(columnHeaderCellEl);
+    this._tableColumnElements.push(columnHeaderCellEl);
   }
 
   toggleRowAnchorsVisibility(show: boolean): void {
@@ -239,19 +246,13 @@ export default class Table {
       const cellRightPx = totalTranslateXPx + column.width;
       this.columnAnchors[columnIndex].setLeftPosition(cellRightPx);
 
-      if (columnIndex === changedColumnIndex) {
-        this.tableColumnElements[columnIndex].style.width = `${column.width}px`;
-      }
-
+      this.tableColumnElements[columnIndex].style.width = `${column.width}px`;
       this.tableColumnElements[columnIndex].style.transform = `translateX(${totalTranslateXPx}px)`;
 
       this.tableCellElements
         .filter(({ columnIndex: cellColumnIndex }) => cellColumnIndex ===  columnIndex)
         .forEach((cell: CellElement) => {
-          if (cell.columnIndex === changedColumnIndex) {
-            cell.DOMElement.style.width = `${column.width}px`;
-          }
-
+          cell.DOMElement.style.width = `${column.width}px`;
           cell.DOMElement.style.transform = `translateX(${totalTranslateXPx - this.rowHeaderCellWidthPx}px)`;
         });
 
@@ -477,6 +478,172 @@ export default class Table {
 
     this.rows.delete(lastRowIndex);
     this.rerenderRows()
+  }
+
+  private getColumnName(columnIndex: number): string {
+    if (columnIndex < 0) {
+      return '';
+    }
+
+    let index = columnIndex;
+    let columnName = '';
+
+    do {
+      columnName = String.fromCharCode(65 + (index % 26)) + columnName;
+      index = Math.floor(index / 26) - 1;
+    } while (index >= 0);
+
+    return columnName;
+  }
+
+  private addColumn(position: 'before' | 'after'): void {
+    if (!this.selectedCell) {
+      return;
+    }
+
+    const selectedColumnIndex = this.selectedCell.cellColIndex;
+    const addedColumnIndex = position === 'before' ? selectedColumnIndex : selectedColumnIndex + 1;
+    const addedColumnTranslateXPx = Number(
+      this.tableColumnElements[addedColumnIndex].style.transform.slice(11).slice(0, -3)
+    );
+    const columnTitle = this.getColumnName(this.columns.size);
+    const lastCurrentColumnWidth = this.columns.get(this.columns.size - 2)!.width;
+
+    this.columns.set(this.columns.size, {
+      title: columnTitle,
+      width: lastCurrentColumnWidth
+    });
+
+    this.addColumnHeaderCellElements(
+      this.columns.size - 1,
+      lastCurrentColumnWidth,
+      columnTitle,
+      this.cellsTotalWidth
+    );
+
+    let previousColumnData: Column = { title: '', width: 0 };
+    let previousCellsData: Cell[] = [];
+
+    for (let columnIndex = addedColumnIndex; columnIndex < this.columns.size; columnIndex += 1) {
+      const isFirstColumn = columnIndex === addedColumnIndex;
+      const currentColumnData: Column = this.columns.get(columnIndex)!;
+      const cellsCurrentData: Cell[] = [];
+      const columnData: Column = {
+        title: currentColumnData.title,
+        width: isFirstColumn ? this.columnDefaultWidthPx : previousColumnData.width,
+      };
+
+      this.columns.set(columnIndex, columnData);
+
+      for (let rowIndex = 0; rowIndex < this.rows.size; rowIndex += 1) {
+        const cellKey = `${rowIndex}_${columnIndex}`;
+        const cellCurrentData = this._cells.get(cellKey)!;
+
+        const cellData = isFirstColumn
+          ? {
+            formula: '',
+            calculatedValue: `Нов.к.: ${rowIndex},${columnIndex}`,
+            type: 'String',
+            formating: [],
+          } as Cell
+          : previousCellsData[columnIndex];
+
+        this.cells.set(cellKey, cellData);
+
+        cellsCurrentData.push(cellCurrentData);
+      }
+
+      previousColumnData = currentColumnData;
+      previousCellsData = cellsCurrentData;
+    }
+
+    const lastColumnIndex = this.columns.size - 1;
+    for (let rowIndex = 0; rowIndex < this.tableRowElements.length; rowIndex += 1) {
+        const cellElement = this.getCellElement(
+          rowIndex,
+          this.columns.get(lastColumnIndex)!,
+          lastColumnIndex,
+          this.cellsTotalWidth - this.rowHeaderCellWidthPx
+        );
+
+        this.tableRowElements[rowIndex].appendChild(cellElement);
+        this.tableCellElements.push({
+          DOMElement: cellElement,
+          rowIndex,
+          columnIndex: lastColumnIndex,
+        });
+    }
+
+    this.rerenderColumnAnchors();
+    this.rerenderColumns(addedColumnIndex, addedColumnTranslateXPx);
+    this.rerenderRows();
+  }
+
+  private removeColumn() {
+    if (!this.selectedCell) {
+      return;
+    }
+
+    const selectedColumnIndex = this.selectedCell.cellColIndex;
+    const lastColumnIndex = this.columns.size - 1;
+    const removedColumnTranslateXPx = Number(
+      this.tableColumnElements[selectedColumnIndex].style.transform.slice(11).slice(0, -3)
+    );
+
+    for (let columnIndex = selectedColumnIndex; columnIndex < this.columns.size - 1; columnIndex += 1) {
+      this.columns.set(columnIndex, this.columns.get(columnIndex + 1)!);
+
+      for (let rowIndex = 0; rowIndex < this.rows.size; rowIndex += 1) {
+        const cellKey = `${rowIndex}_${columnIndex}`;
+        const nextCellKey = `${rowIndex}_${columnIndex + 1}`;
+
+        this.cells.set(cellKey, this.cells.get(nextCellKey)!);
+      }
+    }
+
+    for (let rowIndex = 0; rowIndex < this.rows.size; rowIndex += 1) {
+      const cellKey = `${rowIndex}_${lastColumnIndex}`;
+      this.cells.delete(cellKey);
+    }
+
+    this.tableCellElements = this.tableCellElements
+      .filter(({ columnIndex }) => columnIndex !== lastColumnIndex);
+
+    for (let rowElIndex = 0; rowElIndex < this.tableRowElements.length; rowElIndex += 1) {
+      const lastCellEl = this.tableRowElements[rowElIndex]
+        .querySelector(`[data-column="${lastColumnIndex}"]`);
+
+      if (lastCellEl) {
+        this.tableRowElements[rowElIndex].removeChild(lastCellEl);
+      }
+    }
+
+    this.columns.delete(lastColumnIndex);
+    this._tableColumnElements.pop();
+    const lastColumnHeaderEl = this.columnHeadersContainer.querySelector(`[data-column-header-index="${lastColumnIndex}"]`);
+
+    if (lastColumnHeaderEl) {
+      this.columnHeadersContainer.removeChild(lastColumnHeaderEl);
+    }
+
+    this.rerenderColumnAnchors();
+    this.rerenderColumns(selectedColumnIndex, removedColumnTranslateXPx);
+    this.rerenderRows();
+  };
+
+  private rerenderColumnAnchors(): void {
+    this.columnHeadersContainer.querySelectorAll('.column-anchor').forEach((anchorEl, anchorIndex) => {
+      this.columnHeadersContainer.removeChild(anchorEl);
+      this.columnAnchors[anchorIndex].destroy();
+    });
+
+    this.columnAnchors = [];
+
+    let totalColumnsWidth = this.rowHeaderCellWidthPx;
+    this.columns.forEach((column: Column, columnIndex) => {
+      this.addColumnAnchor(totalColumnsWidth, columnIndex);
+      totalColumnsWidth += column.width + this.cellPaddingPx;
+    });
   }
 
   public destroy(): void {
